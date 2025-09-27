@@ -23,22 +23,6 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 
-const courses = [
-  "Computer Science",
-  "Information Technology", 
-  "Software Engineering",
-  "Business Administration",
-  "Marketing",
-  "Finance",
-  "Accounting",
-  "Engineering",
-  "Medicine",
-  "Nursing",
-  "Education",
-  "Psychology",
-  "Other"
-]
-
 interface AlumniProfile {
   id: string
   firstName: string
@@ -91,6 +75,11 @@ export default function SearchPage() {
     industry: "all",
     employmentStatus: "all",
   })
+  
+  // Dynamic filter options from database
+  const [availableCourses, setAvailableCourses] = useState<string[]>([])
+  const [availableIndustries, setAvailableIndustries] = useState<string[]>([])
+  const [availableYears, setAvailableYears] = useState<number[]>([])
 
   const ITEMS_PER_PAGE = 12
 
@@ -108,8 +97,26 @@ export default function SearchPage() {
       if (response.ok) {
         const data = await response.json()
         setAlumni(data)
+        
+        // Extract unique filter options from the data
+        const courses = [...new Set(data.map((a: AlumniProfile) => a.course))].sort()
+        const years = [...new Set(data.map((a: AlumniProfile) => a.yearGraduated))].sort((a, b) => b - a)
+        const industries = new Set<string>()
+        
+        data.forEach((alumni: AlumniProfile) => {
+          alumni.employments.forEach(emp => {
+            if (emp.industry) industries.add(emp.industry)
+          })
+        })
+        
+        setAvailableCourses(courses)
+        setAvailableYears(years)
+        setAvailableIndustries(Array.from(industries).sort())
       } else {
-        toast.error("Failed to load alumni data")
+        const errorData = await response.json()
+        toast.error("Failed to load alumni data", {
+          description: errorData.message || "Please try again later"
+        })
       }
     } catch (error) {
       console.error("Error fetching alumni:", error)
@@ -209,20 +216,6 @@ export default function SearchPage() {
     return current
   }
 
-  const getUniqueYears = () => {
-    const years = [...new Set(alumni.map(a => a.yearGraduated))].sort((a, b) => b - a)
-    return years
-  }
-
-  const getUniqueIndustries = () => {
-    const industries = new Set<string>()
-    alumni.forEach(alumni => {
-      alumni.employments.forEach(emp => {
-        if (emp.industry) industries.add(emp.industry)
-      })
-    })
-    return Array.from(industries).sort()
-  }
 
   if (isLoading) {
     return (
@@ -278,7 +271,7 @@ export default function SearchPage() {
               </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Courses</SelectItem>
-                        {courses.map(course => (
+                        {availableCourses.map(course => (
                           <SelectItem key={course} value={course}>{course}</SelectItem>
                         ))}
                       </SelectContent>
@@ -293,7 +286,7 @@ export default function SearchPage() {
               </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Years</SelectItem>
-                        {getUniqueYears().map(year => (
+                        {availableYears.map(year => (
                           <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
                         ))}
                       </SelectContent>
@@ -314,7 +307,7 @@ export default function SearchPage() {
               </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Industries</SelectItem>
-                        {getUniqueIndustries().map(industry => (
+                        {availableIndustries.map(industry => (
                           <SelectItem key={industry} value={industry}>{industry}</SelectItem>
                         ))}
                       </SelectContent>
